@@ -116,6 +116,10 @@ jobs:
           security list-keychains -d user -s "$KEYCHAIN_PATH"
           security default-keychain -s "$KEYCHAIN_PATH"
 
+          # ADD THIS at the end of your Install Apple Certificate step
+          echo "--- Valid Code Signing Identities ---"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
       - name: Install Provisioning Profile
         env:
           PROVISIONING_PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
@@ -148,10 +152,14 @@ jobs:
         env:
           DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          # Force Xcode project to use Manual signing
+          # 1. Force Xcode project to use Manual signing
           sed -i '' 's/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/' ios/Runner.xcodeproj/project.pbxproj
           
-          # FIX: Removed CODE_SIGN_IDENTITY to allow Xcode auto-detection
+          # 2. Nuke any hardcoded "Development" identities in the project file
+          sed -i '' 's/CODE_SIGN_IDENTITY = "Apple Development";/CODE_SIGN_IDENTITY = "Apple Distribution";/g' ios/Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/CODE_SIGN_IDENTITY\[sdk=iphoneos\*\] = "Apple Development";/CODE_SIGN_IDENTITY\[sdk=iphoneos\*\] = "Apple Distribution";/g' ios/Runner.xcodeproj/project.pbxproj
+          
+          # 3. Run the build with strict overrides
           flutter build ipa --release \
             -t lib/main.dart \
             --export-options-plist=ios/ExportOptions.plist \
@@ -159,7 +167,8 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
             PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" \
-            PROVISIONING_PROFILE="$PROFILE_UUID"
+            PROVISIONING_PROFILE="$PROFILE_UUID" \
+            CODE_SIGN_IDENTITY="Apple Distribution"
 
       # - name: Package unsigned IPA
       #   run: |
