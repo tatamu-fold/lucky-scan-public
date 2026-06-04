@@ -122,7 +122,8 @@ jobs:
           
           echo "$PROVISIONING_PROFILE_BASE64" | base64 --decode > $RUNNER_TEMP/temp.mobileprovision
           
-          UUID=$(UUID=$(security cms -D -i $RUNNER_TEMP/temp.mobileprovision | grep -A1 UUID | grep string | sed -E 's/<\/?string>//g' | tr -d '[:space:]')
+          UUID=$(security cms -D -i $RUNNER_TEMP/temp.mobileprovision | grep -A1 UUID | grep string | sed -E 's/<\/?string>//g' | tr -d '[:space:]')
+          
           cp $RUNNER_TEMP/temp.mobileprovision "$PP_FOLDER/$UUID.mobileprovision"
           
           echo "PROFILE_UUID=$UUID" >> $GITHUB_ENV
@@ -149,10 +150,9 @@ jobs:
             -t lib/main.dart \
             --export-options-plist=ios/ExportOptions.plist \
             -- \
-            CODE_SIGN_STYLE="$CODE_SIGN_STYLE" \
+            CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
-            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" \
-            AD_HOC_CODE_SIGNING_ALLOWED=YES
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID"
 
       # - name: Package unsigned IPA
       #   run: |
