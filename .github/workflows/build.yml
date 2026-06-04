@@ -15,70 +15,70 @@ jobs:
           echo "timestamp=$(date +'%Y%m%d%H%M')" >> "$GITHUB_OUTPUT"
           echo "timestamp_int=$(date +'%s' | cut -c 1-9)" >> "$GITHUB_OUTPUT"
 
-  build_android:
-    needs: prepare
-    runs-on: ubuntu-latest
-    steps:
-      - name: Clone repo
-        env:
-          GITHUB_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
-        run: |
-          git init
-          git remote add origin https://x-access-token:${GITHUB_TOKEN}@github.com/iamCristYE/lucky-scan.git
-          git fetch
-          git checkout origin/main
+  # build_android:
+  #   needs: prepare
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Clone repo
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+  #       run: |
+  #         git init
+  #         git remote add origin https://x-access-token:${GITHUB_TOKEN}@github.com/iamCristYE/lucky-scan.git
+  #         git fetch
+  #         git checkout origin/main
 
-      - uses: actions/setup-java@v5
-        with:
-          distribution: 'zulu'
-          java-version: '17'
+  #     - uses: actions/setup-java@v5
+  #       with:
+  #         distribution: 'zulu'
+  #         java-version: '17'
 
-      - name: Clone Flutter repository
-        run: |
-          git clone https://github.com/flutter/flutter.git --depth 1 -b stable $HOME/flutter
-          echo "$HOME/flutter/bin" >> $GITHUB_PATH
+  #     - name: Clone Flutter repository
+  #       run: |
+  #         git clone https://github.com/flutter/flutter.git --depth 1 -b stable $HOME/flutter
+  #         echo "$HOME/flutter/bin" >> $GITHUB_PATH
 
-      - name: Get dependencies
-        run: flutter pub get
+  #     - name: Get dependencies
+  #       run: flutter pub get
 
-      - name: Build Release APK
-        run: |
-          flutter build apk --release \
-            --build-name="1.0.${{ needs.prepare.outputs.timestamp }}" \
-            --build-number=${{ needs.prepare.outputs.timestamp_int }}
-          mv build/app/outputs/flutter-apk/app-release.apk luckyscan_${{ needs.prepare.outputs.timestamp }}.apk
+  #     - name: Build Release APK
+  #       run: |
+  #         flutter build apk --release \
+  #           --build-name="1.0.${{ needs.prepare.outputs.timestamp }}" \
+  #           --build-number=${{ needs.prepare.outputs.timestamp_int }}
+  #         mv build/app/outputs/flutter-apk/app-release.apk luckyscan_${{ needs.prepare.outputs.timestamp }}.apk
 
-      - name: Build Mock Debug APK
-        run: |
-          flutter build apk --debug \
-            --dart-define=MOCK_API=true \
-            --build-name="1.0.${{ needs.prepare.outputs.timestamp }}-mock" \
-            --build-number=${{ needs.prepare.outputs.timestamp_int }}
-          mv build/app/outputs/flutter-apk/app-debug.apk luckyscan_mock_${{ needs.prepare.outputs.timestamp }}.apk
+  #     - name: Build Mock Debug APK
+  #       run: |
+  #         flutter build apk --debug \
+  #           --dart-define=MOCK_API=true \
+  #           --build-name="1.0.${{ needs.prepare.outputs.timestamp }}-mock" \
+  #           --build-number=${{ needs.prepare.outputs.timestamp_int }}
+  #         mv build/app/outputs/flutter-apk/app-debug.apk luckyscan_mock_${{ needs.prepare.outputs.timestamp }}.apk
 
-      - name: Zip APKs
-        run: |
-          zip -9 luckyscan_${{ needs.prepare.outputs.timestamp }}.zip \
-            luckyscan_${{ needs.prepare.outputs.timestamp }}.apk
+  #     - name: Zip APKs
+  #       run: |
+  #         zip -9 luckyscan_${{ needs.prepare.outputs.timestamp }}.zip \
+  #           luckyscan_${{ needs.prepare.outputs.timestamp }}.apk
 
-          zip -9 luckyscan_mock_${{ needs.prepare.outputs.timestamp }}.zip \
-            luckyscan_mock_${{ needs.prepare.outputs.timestamp }}.apk
+  #         zip -9 luckyscan_mock_${{ needs.prepare.outputs.timestamp }}.zip \
+  #           luckyscan_mock_${{ needs.prepare.outputs.timestamp }}.apk
 
-      - name: Send ZIPs to Telegram
-        env:
-          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          CHAT_ID: "-1002646331785"
-          THREAD_ID: "4709"
-        run: |
-          curl -F "chat_id=${CHAT_ID}" \
-               -F "message_thread_id=${THREAD_ID}" \
-               -F "document=@luckyscan_${{ needs.prepare.outputs.timestamp }}.zip" \
-               "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument"
+  #     - name: Send ZIPs to Telegram
+  #       env:
+  #         BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+  #         CHAT_ID: "-1002646331785"
+  #         THREAD_ID: "4709"
+  #       run: |
+  #         curl -F "chat_id=${CHAT_ID}" \
+  #              -F "message_thread_id=${THREAD_ID}" \
+  #              -F "document=@luckyscan_${{ needs.prepare.outputs.timestamp }}.zip" \
+  #              "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument"
 
-          curl -F "chat_id=${CHAT_ID}" \
-               -F "message_thread_id=${THREAD_ID}" \
-               -F "document=@luckyscan_mock_${{ needs.prepare.outputs.timestamp }}.zip" \
-               "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument"
+  #         curl -F "chat_id=${CHAT_ID}" \
+  #              -F "message_thread_id=${THREAD_ID}" \
+  #              -F "document=@luckyscan_mock_${{ needs.prepare.outputs.timestamp }}.zip" \
+  #              "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument"
 
   build_ios:
     needs: prepare
@@ -93,6 +93,30 @@ jobs:
           git fetch
           git checkout origin/main
 
+      - name: Install Apple Certificate
+        env:
+                P12_BASE64: ${{ secrets.P12_BASE64 }}
+                P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+        run: |
+                KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+                KEYCHAIN_PASSWORD=$(openssl rand -base64 21)
+
+                echo "$P12_BASE64" | base64 --decode > $RUNNER_TEMP/cert.p12
+
+                security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+                security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+                security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+                security import $RUNNER_TEMP/cert.p12 -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+                security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+      - name: Install Provisioning Profile
+        env:
+                PROVISIONING_PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
+        run: |
+                mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+                echo "$PROVISIONING_PROFILE_BASE64" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/lucky_scan.mobileprovision
+
       - name: Install Flutter
         run: |
           git clone https://github.com/flutter/flutter.git --depth 1 -b stable $HOME/flutter
@@ -105,20 +129,33 @@ jobs:
           flutter pub get
 
       - name: Build iOS app
-        run: flutter build ios --release --no-codesign
+        run: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
 
-      - name: Package unsigned IPA
-        run: |
-          mkdir -p build/ios/iphoneos/Payload
-          cp -r build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
-          cd build/ios/iphoneos
-          zip -r luckyscan_${{ needs.prepare.outputs.timestamp }}.ipa Payload
-          cd ../../..
+      # - name: Package unsigned IPA
+      #   run: |
+      #     mkdir -p build/ios/iphoneos/Payload
+      #     cp -r build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
+      #     cd build/ios/iphoneos
+      #     zip -r luckyscan_${{ needs.prepare.outputs.timestamp }}.ipa Payload
+      #     cd ../../..
 
-      - name: Send IPA to Telegram
+      # - name: Send IPA to Telegram
+      #   env:
+      #     BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      #     CHAT_ID: "-1002646331785"
+      #     THREAD_ID: "4709"
+      #   run: |
+      #     curl -F "chat_id=${CHAT_ID}" -F "message_thread_id=${THREAD_ID}" -F "document=@build/ios/iphoneos/luckyscan_${{ needs.prepare.outputs.timestamp }}.ipa" "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument"
+      - name: Upload to TestFlight
         env:
-          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          CHAT_ID: "-1002646331785"
-          THREAD_ID: "4709"
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_PRIVATE_KEY }}
         run: |
-          curl -F "chat_id=${CHAT_ID}" -F "message_thread_id=${THREAD_ID}" -F "document=@build/ios/iphoneos/luckyscan_${{ needs.prepare.outputs.timestamp }}.ipa" "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument"
+          mkdir -p ~/.private_keys
+          echo "$ASC_KEY_CONTENT" > ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8
+          
+          xcrun altool --upload-app --type ios \
+            --file build/ios/ipa/*.ipa \
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID"
