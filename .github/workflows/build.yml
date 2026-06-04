@@ -107,12 +107,13 @@ jobs:
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-          security import $RUNNER_TEMP/cert.p12 -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          # Removed '-t cert' to safely import both the cert and the private key
+          security import $RUNNER_TEMP/cert.p12 -P "$P12_PASSWORD" -A -f pkcs12 -k "$KEYCHAIN_PATH"
           
-          # ADD THIS LINE: Allows codesign to access the cert without a UI prompt
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           
-          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | xargs)
+          # FIX: Directly set the keychain list without xargs string corruption
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
           security default-keychain -s "$KEYCHAIN_PATH"
 
       - name: Install Provisioning Profile
@@ -150,7 +151,7 @@ jobs:
           # Force Xcode project to use Manual signing
           sed -i '' 's/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/' ios/Runner.xcodeproj/project.pbxproj
           
-          # Run the build, explicitly passing the Distribution identity
+          # FIX: Removed CODE_SIGN_IDENTITY to allow Xcode auto-detection
           flutter build ipa --release \
             -t lib/main.dart \
             --export-options-plist=ios/ExportOptions.plist \
@@ -158,8 +159,7 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
             PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" \
-            PROVISIONING_PROFILE="$PROFILE_UUID" \
-            CODE_SIGN_IDENTITY="Apple Distribution"
+            PROVISIONING_PROFILE="$PROFILE_UUID"
 
       # - name: Package unsigned IPA
       #   run: |
