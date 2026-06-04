@@ -137,8 +137,9 @@ jobs:
           PROVISIONING_PROFILE_SPECIFIER: LuckyScanAppStoreProfile
         run: |
           flutter build ipa --release \
+            -t lib/main.dart \
             --export-options-plist=ios/ExportOptions.plist \
-            -- --xcconfig-overrides=ios/Flutter/Release.xcconfig \
+            -- \
             CODE_SIGN_STYLE="$CODE_SIGN_STYLE" \
             DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
             PROVISIONING_PROFILE_SPECIFIER="$PROVISIONING_PROFILE_SPECIFIER" \
