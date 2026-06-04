@@ -58,7 +58,7 @@ jobs:
           git add pubspec.yaml
           git commit -m "chore: bump version to $NEW_VERSION [skip ci]"
           git push origin main
-          
+
   build_android:
     needs: prepare
     runs-on: ubuntu-latest
@@ -70,14 +70,16 @@ jobs:
           git init
           git remote add origin https://x-access-token:${GITHUB_TOKEN}@github.com/iamCristYE/lucky-scan.git
           git fetch
-          git checkout origin/main
+          # Ensure we pull the fresh commit created in the 'prepare' job
+          git checkout main
+          git pull origin main
 
       - uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Clone Flutter repository
+      - name: Install Flutter
         run: |
           git clone https://github.com/flutter/flutter.git --depth 1 -b stable $HOME/flutter
           echo "$HOME/flutter/bin" >> $GITHUB_PATH
@@ -85,45 +87,46 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Extract Version for Filenames
+        id: get-version
+        run: |
+          # Extract version like 1.0.0+1
+          FULL_VERSION=$(grep 'version: ' pubspec.yaml | sed 's/version: //')
+          # Clean version for filename (replace + with - for compatibility)
+          CLEAN_VERSION=$(echo $FULL_VERSION | tr '+' '-')
+          echo "version=$CLEAN_VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Build Release APK
         run: |
-          flutter build apk --release \
-            --build-name="1.0.${{ needs.prepare.outputs.timestamp }}" \
-            --build-number=${{ needs.prepare.outputs.timestamp_int }}
-          mv build/app/outputs/flutter-apk/app-release.apk luckyscan_${{ needs.prepare.outputs.timestamp }}.apk
+          # We remove --build-name and --build-number so Flutter uses pubspec.yaml defaults
+          flutter build apk --release
+          
+          # Use the extracted version and timestamp for the filename
+          mv build/app/outputs/flutter-apk/app-release.apk luckyscan_${{ steps.get-version.outputs.version }}_${{ needs.prepare.outputs.timestamp }}.apk
 
       - name: Build Mock Debug APK
         run: |
-          flutter build apk --debug \
-            --dart-define=MOCK_API=true \
-            --build-name="1.0.${{ needs.prepare.outputs.timestamp }}-mock" \
-            --build-number=${{ needs.prepare.outputs.timestamp_int }}
-          mv build/app/outputs/flutter-apk/app-debug.apk luckyscan_mock_${{ needs.prepare.outputs.timestamp }}.apk
+          flutter build apk --debug --dart-define=MOCK_API=true
+          mv build/app/outputs/flutter-apk/app-debug.apk luckyscan_mock_${{ steps.get-version.outputs.version }}_${{ needs.prepare.outputs.timestamp }}.apk
 
-      - name: Zip APKs
-        run: |
-          zip -9 luckyscan_${{ needs.prepare.outputs.timestamp }}.zip \
-            luckyscan_${{ needs.prepare.outputs.timestamp }}.apk
-
-          zip -9 luckyscan_mock_${{ needs.prepare.outputs.timestamp }}.zip \
-            luckyscan_mock_${{ needs.prepare.outputs.timestamp }}.apk
-
-      - name: Send ZIPs to Telegram
+      - name: Zip and Send to Telegram
         env:
           BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: "-1002646331785"
           THREAD_ID: "4709"
+          VER: ${{ steps.get-version.outputs.version }}
+          TS: ${{ needs.prepare.outputs.timestamp }}
         run: |
-          curl -F "chat_id=${CHAT_ID}" \
-               -F "message_thread_id=${THREAD_ID}" \
-               -F "document=@luckyscan_${{ needs.prepare.outputs.timestamp }}.zip" \
+          zip -9 "luckyscan_${VER}_${TS}.zip" "luckyscan_${VER}_${TS}.apk"
+          zip -9 "luckyscan_mock_${VER}_${TS}.zip" "luckyscan_mock_${VER}_${TS}.apk"
+
+          curl -F "chat_id=${CHAT_ID}" -F "message_thread_id=${THREAD_ID}" \
+               -F "document=@luckyscan_${VER}_${TS}.zip" \
                "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument"
 
-          curl -F "chat_id=${CHAT_ID}" \
-               -F "message_thread_id=${THREAD_ID}" \
-               -F "document=@luckyscan_mock_${{ needs.prepare.outputs.timestamp }}.zip" \
+          curl -F "chat_id=${CHAT_ID}" -F "message_thread_id=${THREAD_ID}" \
+               -F "document=@luckyscan_mock_${VER}_${TS}.zip" \
                "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument"
-
   build_ios:
     needs: prepare
     runs-on: macos-26
