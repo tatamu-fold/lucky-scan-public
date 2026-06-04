@@ -118,7 +118,7 @@ jobs:
           TS: ${{ needs.prepare.outputs.timestamp }}
         run: |
           zip -9 "luckyscan_${VER}_${TS}.zip" "luckyscan_${VER}_${TS}.apk"
-          zip -9 "luckyscan_mock_${VER}_${TS}.zip" "luckyscan_mock_${VER}_${TS}.apk"
+          # zip -9 "luckyscan_mock_${VER}_${TS}.zip" "luckyscan_mock_${VER}_${TS}.apk"
 
           curl -F "chat_id=${CHAT_ID}" -F "message_thread_id=${THREAD_ID}" \
                -F "document=@luckyscan_${VER}_${TS}.zip" \
