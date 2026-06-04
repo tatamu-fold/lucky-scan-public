@@ -93,11 +93,6 @@ jobs:
           git fetch
           git checkout origin/main
 
-      - name: List files to debug path
-        run: |
-          pwd
-          ls -R
-
       - name: Install Apple Certificate
         env:
           P12_BASE64: ${{ secrets.P12_BASE64 }}
@@ -136,7 +131,6 @@ jobs:
 
 
       - name: Build iOS app
-        working-directory: ./lucky-scan
         run: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
 
       # - name: Package unsigned IPA
@@ -155,7 +149,6 @@ jobs:
       #   run: |
       #     curl -F "chat_id=${CHAT_ID}" -F "message_thread_id=${THREAD_ID}" -F "document=@build/ios/iphoneos/luckyscan_${{ needs.prepare.outputs.timestamp }}.ipa" "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument"
       - name: Upload to TestFlight
-        working-directory: ./lucky-scan
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
