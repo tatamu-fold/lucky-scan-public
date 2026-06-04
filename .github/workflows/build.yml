@@ -89,7 +89,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
         run: |
           git init
-          git remote add origin https://x-access-token:${GITHUB_TOKEN}@github.com/iamCristYE/lucky-scan.git
+          git remote add origin https://x-access-token:${GITHUB_TOKEN}@github.com/tatamu-fold/lucky-scan.git
           git fetch
           git checkout origin/main
 
@@ -129,6 +129,7 @@ jobs:
           flutter pub get
 
       - name: Build iOS app
+        working-directory: ./lucky-scan
         run: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
 
       # - name: Package unsigned IPA
@@ -147,6 +148,7 @@ jobs:
       #   run: |
       #     curl -F "chat_id=${CHAT_ID}" -F "message_thread_id=${THREAD_ID}" -F "document=@build/ios/iphoneos/luckyscan_${{ needs.prepare.outputs.timestamp }}.ipa" "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument"
       - name: Upload to TestFlight
+        working-directory: ./lucky-scan
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
