@@ -153,11 +153,11 @@ jobs:
           DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           # 1. Force Xcode project to use Manual signing
-          sed -i '' 's/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/' ios/Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
           
-          # 2. Nuke any hardcoded "Development" identities in the project file
-          sed -i '' 's/CODE_SIGN_IDENTITY = "Apple Development";/CODE_SIGN_IDENTITY = "Apple Distribution";/g' ios/Runner.xcodeproj/project.pbxproj
-          sed -i '' 's/CODE_SIGN_IDENTITY\[sdk=iphoneos\*\] = "Apple Development";/CODE_SIGN_IDENTITY\[sdk=iphoneos\*\] = "Apple Distribution";/g' ios/Runner.xcodeproj/project.pbxproj
+          # 2. BRUTE FORCE: Nuke ANY reference to Development in the Xcode project
+          sed -i '' 's/iPhone Developer/Apple Distribution/g' ios/Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/Apple Development/Apple Distribution/g' ios/Runner.xcodeproj/project.pbxproj
           
           # 3. Run the build with strict overrides
           flutter build ipa --release \
