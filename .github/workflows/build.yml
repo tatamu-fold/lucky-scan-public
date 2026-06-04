@@ -131,7 +131,18 @@ jobs:
 
 
       - name: Build iOS app
-        run: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+        env:
+          CODE_SIGN_STYLE: Manual
+          DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
+          PROVISIONING_PROFILE_SPECIFIER: LuckyScanAppStoreProfile
+        run: |
+          flutter build ipa --release \
+            --export-options-plist=ios/ExportOptions.plist \
+            -- --xcconfig-overrides=ios/Flutter/Release.xcconfig \
+            CODE_SIGN_STYLE="$CODE_SIGN_STYLE" \
+            DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
+            PROVISIONING_PROFILE_SPECIFIER="$PROVISIONING_PROFILE_SPECIFIER" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES
 
       # - name: Package unsigned IPA
       #   run: |
