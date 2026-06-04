@@ -145,9 +145,12 @@ jobs:
 
       - name: Build iOS app
         env:
-          CODE_SIGN_STYLE: Manual
           DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
         run: |
+          # Force Xcode project to use Manual signing
+          sed -i '' 's/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/' ios/Runner.xcodeproj/project.pbxproj
+          
+          # Run the build, explicitly passing the Distribution identity
           flutter build ipa --release \
             -t lib/main.dart \
             --export-options-plist=ios/ExportOptions.plist \
@@ -155,6 +158,7 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
             PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" \
+            PROVISIONING_PROFILE="$PROFILE_UUID" \
             CODE_SIGN_IDENTITY="Apple Distribution"
 
       # - name: Package unsigned IPA
