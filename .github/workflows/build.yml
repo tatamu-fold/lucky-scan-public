@@ -104,10 +104,10 @@ jobs:
           # Use the extracted version and timestamp for the filename
           mv build/app/outputs/flutter-apk/app-release.apk luckyscan_${{ steps.get-version.outputs.version }}_${{ needs.prepare.outputs.timestamp }}.apk
 
-      - name: Build Mock Debug APK
-        run: |
-          flutter build apk --debug --dart-define=MOCK_API=true
-          mv build/app/outputs/flutter-apk/app-debug.apk luckyscan_mock_${{ steps.get-version.outputs.version }}_${{ needs.prepare.outputs.timestamp }}.apk
+      # - name: Build Mock Debug APK
+      #   run: |
+      #     flutter build apk --debug --dart-define=MOCK_API=true
+      #     mv build/app/outputs/flutter-apk/app-debug.apk luckyscan_mock_${{ steps.get-version.outputs.version }}_${{ needs.prepare.outputs.timestamp }}.apk
 
       - name: Zip and Send to Telegram
         env:
@@ -124,9 +124,9 @@ jobs:
                -F "document=@luckyscan_${VER}_${TS}.zip" \
                "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument"
 
-          curl -F "chat_id=${CHAT_ID}" -F "message_thread_id=${THREAD_ID}" \
-               -F "document=@luckyscan_mock_${VER}_${TS}.zip" \
-               "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument"
+          # curl -F "chat_id=${CHAT_ID}" -F "message_thread_id=${THREAD_ID}" \
+          #      -F "document=@luckyscan_mock_${VER}_${TS}.zip" \
+          #      "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument"
   build_ios:
     needs: prepare
     runs-on: macos-26
