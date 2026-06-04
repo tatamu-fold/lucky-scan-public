@@ -14,71 +14,115 @@ jobs:
         run: |
           echo "timestamp=$(date +'%Y%m%d%H%M')" >> "$GITHUB_OUTPUT"
           echo "timestamp_int=$(date +'%s' | cut -c 1-9)" >> "$GITHUB_OUTPUT"
+      
+      - name: Clone repo
+        env:
+          GITHUB_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+        run: |
+          # Initializing and fetching manually to ensure the token is used for the push later
+          git init
+          git remote add origin https://x-access-token:${GITHUB_TOKEN}@github.com/tatamu-fold/lucky-scan.git
+          git fetch
+          git checkout main
 
-  # build_android:
-  #   needs: prepare
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Clone repo
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
-  #       run: |
-  #         git init
-  #         git remote add origin https://x-access-token:${GITHUB_TOKEN}@github.com/iamCristYE/lucky-scan.git
-  #         git fetch
-  #         git checkout origin/main
+      - name: Update Version in pubspec.yaml
+        run: |
+          # Update Version in pubspec.yaml
 
-  #     - uses: actions/setup-java@v5
-  #       with:
-  #         distribution: 'zulu'
-  #         java-version: '17'
+          # 1. Extract the current version line
+          VERSION_LINE=$(grep 'version: ' pubspec.yaml)
+          FULL_VERSION=$(echo $VERSION_LINE | cut -d ' ' -f 2)
+          
+          # 2. Split into version (1.0.0) and build number (1)
+          VERSION_PART=$(echo $FULL_VERSION | cut -d '+' -f 1)
+          BUILD_PART=$(echo $FULL_VERSION | cut -d '+' -f 2)
+          
+          # 3. Split version into major, minor, patch
+          MAJOR=$(echo $VERSION_PART | cut -d '.' -f 1)
+          MINOR=$(echo $VERSION_PART | cut -d '.' -f 2)
+          PATCH=$(echo $VERSION_PART | cut -d '.' -f 3)
+          
+          # 4. Increment values
+          NEW_PATCH=$((PATCH + 1))
+          NEW_BUILD=$((BUILD_PART + 1))
+          NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH+$NEW_BUILD"
+          
+          echo "Updating version from $FULL_VERSION to $NEW_VERSION"
+          
+          # 5. Write back to file
+          sed -i "s/version: .*/version: $NEW_VERSION/" pubspec.yaml
+          
+          # 6. Push the change
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add pubspec.yaml
+          git commit -m "chore: bump version to $NEW_VERSION [skip ci]"
+          git push origin main
+          
+  build_android:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone repo
+        env:
+          GITHUB_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+        run: |
+          git init
+          git remote add origin https://x-access-token:${GITHUB_TOKEN}@github.com/iamCristYE/lucky-scan.git
+          git fetch
+          git checkout origin/main
 
-  #     - name: Clone Flutter repository
-  #       run: |
-  #         git clone https://github.com/flutter/flutter.git --depth 1 -b stable $HOME/flutter
-  #         echo "$HOME/flutter/bin" >> $GITHUB_PATH
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'zulu'
+          java-version: '17'
 
-  #     - name: Get dependencies
-  #       run: flutter pub get
+      - name: Clone Flutter repository
+        run: |
+          git clone https://github.com/flutter/flutter.git --depth 1 -b stable $HOME/flutter
+          echo "$HOME/flutter/bin" >> $GITHUB_PATH
 
-  #     - name: Build Release APK
-  #       run: |
-  #         flutter build apk --release \
-  #           --build-name="1.0.${{ needs.prepare.outputs.timestamp }}" \
-  #           --build-number=${{ needs.prepare.outputs.timestamp_int }}
-  #         mv build/app/outputs/flutter-apk/app-release.apk luckyscan_${{ needs.prepare.outputs.timestamp }}.apk
+      - name: Get dependencies
+        run: flutter pub get
 
-  #     - name: Build Mock Debug APK
-  #       run: |
-  #         flutter build apk --debug \
-  #           --dart-define=MOCK_API=true \
-  #           --build-name="1.0.${{ needs.prepare.outputs.timestamp }}-mock" \
-  #           --build-number=${{ needs.prepare.outputs.timestamp_int }}
-  #         mv build/app/outputs/flutter-apk/app-debug.apk luckyscan_mock_${{ needs.prepare.outputs.timestamp }}.apk
+      - name: Build Release APK
+        run: |
+          flutter build apk --release \
+            --build-name="1.0.${{ needs.prepare.outputs.timestamp }}" \
+            --build-number=${{ needs.prepare.outputs.timestamp_int }}
+          mv build/app/outputs/flutter-apk/app-release.apk luckyscan_${{ needs.prepare.outputs.timestamp }}.apk
 
-  #     - name: Zip APKs
-  #       run: |
-  #         zip -9 luckyscan_${{ needs.prepare.outputs.timestamp }}.zip \
-  #           luckyscan_${{ needs.prepare.outputs.timestamp }}.apk
+      - name: Build Mock Debug APK
+        run: |
+          flutter build apk --debug \
+            --dart-define=MOCK_API=true \
+            --build-name="1.0.${{ needs.prepare.outputs.timestamp }}-mock" \
+            --build-number=${{ needs.prepare.outputs.timestamp_int }}
+          mv build/app/outputs/flutter-apk/app-debug.apk luckyscan_mock_${{ needs.prepare.outputs.timestamp }}.apk
 
-  #         zip -9 luckyscan_mock_${{ needs.prepare.outputs.timestamp }}.zip \
-  #           luckyscan_mock_${{ needs.prepare.outputs.timestamp }}.apk
+      - name: Zip APKs
+        run: |
+          zip -9 luckyscan_${{ needs.prepare.outputs.timestamp }}.zip \
+            luckyscan_${{ needs.prepare.outputs.timestamp }}.apk
 
-  #     - name: Send ZIPs to Telegram
-  #       env:
-  #         BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-  #         CHAT_ID: "-1002646331785"
-  #         THREAD_ID: "4709"
-  #       run: |
-  #         curl -F "chat_id=${CHAT_ID}" \
-  #              -F "message_thread_id=${THREAD_ID}" \
-  #              -F "document=@luckyscan_${{ needs.prepare.outputs.timestamp }}.zip" \
-  #              "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument"
+          zip -9 luckyscan_mock_${{ needs.prepare.outputs.timestamp }}.zip \
+            luckyscan_mock_${{ needs.prepare.outputs.timestamp }}.apk
 
-  #         curl -F "chat_id=${CHAT_ID}" \
-  #              -F "message_thread_id=${THREAD_ID}" \
-  #              -F "document=@luckyscan_mock_${{ needs.prepare.outputs.timestamp }}.zip" \
-  #              "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument"
+      - name: Send ZIPs to Telegram
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: "-1002646331785"
+          THREAD_ID: "4709"
+        run: |
+          curl -F "chat_id=${CHAT_ID}" \
+               -F "message_thread_id=${THREAD_ID}" \
+               -F "document=@luckyscan_${{ needs.prepare.outputs.timestamp }}.zip" \
+               "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument"
+
+          curl -F "chat_id=${CHAT_ID}" \
+               -F "message_thread_id=${THREAD_ID}" \
+               -F "document=@luckyscan_mock_${{ needs.prepare.outputs.timestamp }}.zip" \
+               "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument"
 
   build_ios:
     needs: prepare
@@ -117,8 +161,8 @@ jobs:
           security default-keychain -s "$KEYCHAIN_PATH"
 
           # ADD THIS at the end of your Install Apple Certificate step
-          echo "--- Valid Code Signing Identities ---"
-          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+          # echo "--- Valid Code Signing Identities ---"
+          # security find-identity -v -p codesigning "$KEYCHAIN_PATH"
 
       - name: Install Provisioning Profile
         env:
