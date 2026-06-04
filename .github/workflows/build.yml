@@ -108,7 +108,10 @@ jobs:
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
           security import $RUNNER_TEMP/cert.p12 -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
-          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | xargs)
+          
+          security default-keychain -s "$KEYCHAIN_PATH"
 
       - name: Install Provisioning Profile
         env:
@@ -132,18 +135,12 @@ jobs:
 
       - name: Build iOS app
         env:
-          CODE_SIGN_STYLE: Manual
           DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
-          PROVISIONING_PROFILE_SPECIFIER: LuckyScanAppStoreProfile
         run: |
           flutter build ipa --release \
-            -t lib/main.dart \
             --export-options-plist=ios/ExportOptions.plist \
-            -- \
-            CODE_SIGN_STYLE="$CODE_SIGN_STYLE" \
-            DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
-            PROVISIONING_PROFILE_SPECIFIER="$PROVISIONING_PROFILE_SPECIFIER" \
-            AD_HOC_CODE_SIGNING_ALLOWED=YES
+            --build-number=${{ github.run_number }} \
+            --no-codesign
 
       # - name: Package unsigned IPA
       #   run: |
