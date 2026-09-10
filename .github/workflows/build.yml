@@ -231,6 +231,8 @@ jobs:
       #     THREAD_ID: "4709"
       #   run: |
       #     curl -F "chat_id=${CHAT_ID}" -F "message_thread_id=${THREAD_ID}" -F "document=@build/ios/iphoneos/luckyscan_${{ needs.prepare.outputs.timestamp }}.ipa" "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument"
+
+
       - name: Upload to TestFlight
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
@@ -239,9 +241,11 @@ jobs:
         run: |
           mkdir -p ~/.private_keys
           echo "$ASC_KEY_CONTENT" > ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8
-      
-          fastlane pilot upload \
-            --ipa build/ios/ipa/*.ipa \
-            --api_key_path ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8 \
-            --api_issuer ${ASC_ISSUER_ID} \
-            --skip_waiting_for_build_processing
+          
+          xcrun altool \
+            --upload-package build/ios/ipa/*.ipa \
+            --type ios \
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID" \
+            --output-format json \
+            --show-progress
