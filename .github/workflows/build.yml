@@ -237,13 +237,11 @@ jobs:
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_KEY_CONTENT: ${{ secrets.ASC_PRIVATE_KEY }}
         run: |
-            mkdir -p ~/.private_keys
-            echo "$ASC_KEY_CONTENT" > ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8
-            
-            xcrun altool \
-              --upload-package build/ios/ipa/*.ipa \
-              --type ios \
-              --apiKey "$ASC_KEY_ID" \
-              --apiIssuer "$ASC_ISSUER_ID" \
-              --output-format json \
-              --show-progress
+          mkdir -p ~/.private_keys
+          echo "$ASC_KEY_CONTENT" > ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8
+      
+          fastlane pilot upload \
+            --ipa build/ios/ipa/*.ipa \
+            --api_key_path ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+            --api_issuer ${ASC_ISSUER_ID} \
+            --skip_waiting_for_build_processing
