@@ -242,10 +242,18 @@ jobs:
           mkdir -p ~/.private_keys
           echo "$ASC_KEY_CONTENT" > ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8
           
-          xcrun altool \
-            --upload-package build/ios/ipa/*.ipa \
-            --type ios \
-            --apiKey "$ASC_KEY_ID" \
-            --apiIssuer "$ASC_ISSUER_ID" \
-            --output-format json \
-            --show-progress
+          # 生成 Fastlane 需要的 API Key JSON 文件
+          cat > ~/.private_keys/api_key.json <<EOF
+          {
+            "key_id": "${ASC_KEY_ID}",
+            "issuer_id": "${ASC_ISSUER_ID}",
+            "key": "$(cat ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8 | awk '{printf "%s\\n", $0}')",
+            "in_house": false
+          }
+          EOF
+          
+          # 使用生成的 JSON 文件上传
+          fastlane pilot upload \
+            --ipa build/ios/ipa/*.ipa \
+            --api_key_path ~/.private_keys/api_key.json \
+            --skip_waiting_for_build_processing
